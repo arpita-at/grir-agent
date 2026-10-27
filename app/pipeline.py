@@ -5,7 +5,7 @@ import os
 from datetime import date
 
 from .grir import Group, ageing, classify, group, nets_to_zero
-from .triage import triage
+from .triage import triage, wants_model
 
 #: Lines the deterministic classifier fully explains never reach the model.
 MAX_TRIAGE = int(os.environ.get("GRIR_MAX_TRIAGE", 25))
@@ -17,9 +17,11 @@ def run(items, asof: date | None = None, writeoff_limit: float = 1_000.0) -> dic
     rows, sent = [], 0
     for g in groups:
         cat = classify(g)
-        allow = sent < MAX_TRIAGE
+        # Budget is spent on attempts. A key that fails every call must still run
+        # the budget down, or a bad key turns the cap into no cap at all.
+        allow = wants_model(cat) and sent < MAX_TRIAGE
         t = triage(g, cat, asof, allow_model=allow)
-        if t["triaged_by"] == "claude":
+        if t.pop("attempted", False):
             sent += 1
         rows.append({
             "po": g.po, "po_line": g.po_line, "vendor": g.vendor,

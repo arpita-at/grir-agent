@@ -77,6 +77,8 @@ It is also forbidden from proposing a write-off, and its `owner` is validated ag
 
 With no `ANTHROPIC_API_KEY` the deterministic action table carries every line and the report still ships.
 
+The per-run budget (`GRIR_MAX_TRIAGE`, default 25) is spent on **attempts, not successes**. Counting successes looks tidier and is wrong: a key that fails every call would never run the budget down, so the cap would stop capping exactly when something is already broken. There is a test for it.
+
 ## Write-offs
 
 `writeoff_candidate` is advisory and narrow: small (under the limit you pass), old (over 90 days), and not already balancing. Nothing in this repo posts an `MR11`, a journal, or anything else to any system. A write-off is a human decision with a value threshold attached to someone's name.
@@ -87,7 +89,7 @@ With no `ANTHROPIC_API_KEY` the deterministic action table carries every line an
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000     # then open http://127.0.0.1:8000
-pytest -q                                      # 31 passed
+pytest -q                                      # 34 passed
 ```
 
 Optional, for Claude triage on the exceptions: `export ANTHROPIC_API_KEY=sk-ant-...`

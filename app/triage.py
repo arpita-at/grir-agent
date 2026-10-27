@@ -76,14 +76,33 @@ def claude_triage(g: Group, asof) -> dict | None:
     return got
 
 
+#: The only categories worth a model call. Everything else has a mechanical answer.
+TRIAGEABLE = {"needs_judgement", "goods_not_invoiced", "invoiced_not_received"}
+
+
+def model_available() -> bool:
+    """Is a call even possible. With no key nothing is sent, so nothing is counted."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def wants_model(category: str) -> bool:
+    return category in TRIAGEABLE and model_available()
+
+
 def triage(g: Group, category: str, asof, allow_model: bool = True) -> dict:
-    """Deterministic owner and action, with a Claude verdict only where it helps."""
+    """Deterministic owner and action, with a Claude verdict only where it helps.
+
+    `attempted` reports whether a call was actually made, successful or not. The
+    caller spends its budget on attempts, not on successes: a key that fails every
+    time would otherwise never decrement the budget and the pipeline would retry on
+    every eligible line.
+    """
     owner, action = ACTION[category]
     out = {"owner": owner, "action": action, "cause": None,
-           "confidence": None, "triaged_by": "rules"}
-    if not allow_model or category not in {"needs_judgement", "goods_not_invoiced",
-                                           "invoiced_not_received"}:
+           "confidence": None, "triaged_by": "rules", "attempted": False}
+    if not allow_model or not wants_model(category):
         return out
+    out["attempted"] = True
     got = claude_triage(g, asof)
     if not got:
         return out
