@@ -1,0 +1,9 @@
+[project]
+name = "grir-agent"
+version = "0.1.0"
+description = "GR/IR open item triage for SAP. Deterministic netting and classification, a model only on the exceptions."
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

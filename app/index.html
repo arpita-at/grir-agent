@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>grir-agent</title>
+<style>
+ :root{--ink:#0F172A;--mut:#64748B;--line:#E2E8F0;--blue:#2563EB;--bg:#fff;--warn:#EA580C}
+ @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--ink:#E2E8F0;--mut:#94A3B8;--line:#1E293B;--bg:#0B1220}}
+ *{box-sizing:border-box;margin:0}
+ body{background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,"SF Pro Text",Helvetica,sans-serif;padding:48px 16px}
+ main{max-width:980px;margin:0 auto}
+ h1{font-size:34px;letter-spacing:-.02em} h2{font-size:17px;margin:30px 0 10px;letter-spacing:-.01em}
+ p.lede{color:var(--mut);margin:10px 0 24px;max-width:66ch}
+ button{background:var(--blue);color:#fff;border:0;border-radius:10px;padding:11px 20px;font-size:16px;font-weight:600;cursor:pointer}
+ table{border-collapse:collapse;width:100%;margin-top:10px;font-size:14px}
+ th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left}
+ th{color:var(--mut);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+ .sum{display:flex;gap:28px;flex-wrap:wrap;margin-top:22px;color:var(--mut);font-size:14px}
+ .sum b{display:block;color:var(--ink);font-size:22px;font-variant-numeric:tabular-nums}
+ .sum .hot b{color:var(--warn)}
+ .tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:2px 7px;white-space:nowrap}
+ .noise{color:var(--mut)} .real{color:var(--warn)}
+</style></head><body><main>
+<h1>grir-agent</h1>
+<p class="lede">GR/IR open item triage. Groups every posting by purchase order line, nets it, and names the mechanical cause. Lines that already balance are separated from lines that are a real exposure. A model is used only on the ones no rule explains. Sample data is synthetic.</p>
+<button id="go">Run the demo</button><div id="out"></div>
+<script>
+const m=n=>n.toLocaleString(undefined,{maximumFractionDigits:0});
+const NOISE=['assignment_mismatch','clearable'];
+document.getElementById('go').onclick=async()=>{
+ const out=document.getElementById('out'); out.innerHTML='<p class="lede">Running…</p>';
+ const d=await (await fetch('/api/demo',{method:'POST'})).json(); const s=d.summary;
+ out.innerHTML=`<div class="sum">
+   <div>PO lines<b>${s.lines}</b></div>
+   <div class="hot">Real exposure<b>${m(s.open_exposure)}</b></div>
+   <div>Already balanced<b>${s.noise_lines}</b></div>
+   <div>Share of the account<b>${(s.noise_share*100).toFixed(0)}%</b></div>
+   <div>Write-off candidates<b>${s.writeoff_candidates}</b></div>
+   <div>Sent to the model<b>${s.sent_to_model}</b></div></div>
+  <h2>By cause</h2><table><thead><tr><th>Cause</th><th class="num">Lines</th><th class="num">Exposure</th></tr></thead><tbody>`+
+  Object.entries(d.by_category).sort((a,b)=>b[1].exposure-a[1].exposure).map(([k,v])=>
+   `<tr><td><span class="tag ${NOISE.includes(k)?'noise':'real'}">${k.replace(/_/g,' ')}</span></td>
+    <td class="num">${v.lines}</td><td class="num">${m(v.exposure)}</td></tr>`).join('')+
+  `</tbody></table><h2>Ageing</h2><table><thead><tr><th>Days</th><th class="num">Lines</th><th class="num">Exposure</th></tr></thead><tbody>`+
+  Object.entries(d.ageing).map(([k,v])=>`<tr><td>${k}</td><td class="num">${v.lines}</td><td class="num">${m(v.exposure)}</td></tr>`).join('')+
+  `</tbody></table><h2>Lines</h2><table><thead><tr><th>PO / line</th><th>Vendor</th><th>Cause</th><th class="num">Exposure</th><th class="num">Age</th><th>Owner</th><th>Next step</th></tr></thead><tbody>`+
+  d.lines.map(r=>`<tr><td>${r.po}/${r.po_line}</td><td>${r.vendor}</td>
+    <td><span class="tag ${NOISE.includes(r.category)?'noise':'real'}">${r.category.replace(/_/g,' ')}</span></td>
+    <td class="num">${m(r.exposure)}</td><td class="num">${r.age_days}d</td><td>${r.owner}</td>
+    <td>${r.cause?r.cause+' ':''}${r.action}</td></tr>`).join('')+`</tbody></table>`;
+};
+</script></main></body></html>
